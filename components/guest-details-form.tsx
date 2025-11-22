@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { createBooking } from '@/actions/booking/create-booking';
 import { getSuggestedRooms, type SuggestedRoom } from '@/actions/rooms/get-suggested-rooms';
 import CouponInput from '@/components/coupon-input';
+import AddOnsSelector from '@/components/add-ons-selector';
 
 interface AppliedPromotion {
   id: string;
@@ -16,6 +17,24 @@ interface AppliedPromotion {
   discountType: string;
   discountValue: number;
   discountAmount: number;
+}
+
+interface AvailableFee {
+  id: string;
+  name: string;
+  description: string | null;
+  feeType: string;
+  amount: number;
+  isPercentage: boolean;
+  isPerNight: boolean;
+  isPerGuest: boolean;
+  isOptional: boolean;
+}
+
+interface SelectedFee {
+  id: string;
+  name: string;
+  amount: number;
 }
 
 interface GuestDetailsFormProps {
@@ -46,14 +65,16 @@ interface GuestDetailsFormProps {
     total: number;
     currencySymbol: string;
   };
+  availableFees: AvailableFee[];
 }
 
-export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps) {
+export default function GuestDetailsForm({ bookingData, availableFees }: GuestDetailsFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestedRooms, setSuggestedRooms] = useState<SuggestedRoom[]>([]);
   const [appliedPromotion, setAppliedPromotion] = useState<AppliedPromotion | null>(null);
+  const [selectedFees, setSelectedFees] = useState<SelectedFee[]>([]);
   
   const [formData, setFormData] = useState({
     firstName: '',
@@ -66,9 +87,10 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
     specialRequests: '',
   });
 
-  // Calculate final total with discount
+  // Calculate final total with discount and add-ons
   const discountAmount = appliedPromotion?.discountAmount || 0;
-  const finalTotal = bookingData.total - discountAmount;
+  const addOnsTotal = selectedFees.reduce((sum, fee) => sum + fee.amount, 0);
+  const finalTotal = bookingData.total + addOnsTotal - discountAmount;
 
   // Fetch suggested rooms on mount
   useEffect(() => {
@@ -94,6 +116,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
         totalAmount: finalTotal,
         discountAmount: discountAmount,
         promotionCode: appliedPromotion?.code,
+        selectedFees: selectedFees,
         guestDetails: formData,
       });
 
@@ -136,29 +159,19 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
           </div>
         </div>
 
-        {/* Header */}
-        <div className="grid lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2">
-            <h1 className="text-3xl lg:text-4xl font-display font-bold text-neutral-900 mb-2 leading-none">
-              Guest Details
-            </h1>
-            <p className="font-body text-neutral-600">
-              Please provide your information to complete the booking
-            </p>
-          </div>
-          <div className="lg:col-span-1">
-            <h2 className="text-3xl lg:text-4xl font-display font-bold text-neutral-900 mb-2 leading-none">
-              Booking Summary
-            </h2>
-            <p className="font-body text-neutral-600">
-              Review your booking details
-            </p>
-          </div>
-        </div>
-
+        {/* Headers and Content */}
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Left Column - Form */}
           <div className="lg:col-span-2">
+            {/* Header */}
+            <div className="mb-6">
+              <h1 className="text-3xl lg:text-4xl font-display font-bold text-neutral-900 mb-2 leading-none">
+                Guest Details
+              </h1>
+              <p className="font-body text-neutral-600">
+                Please provide your information to complete the booking
+              </p>
+            </div>
             {error && (
               <div className="bg-red-50 border-2 border-red-200 text-red-800 p-4 mb-6 rounded-xl font-body text-sm">
                 {error}
@@ -182,7 +195,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                       required
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                      className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                       placeholder="John"
                     />
                   </div>
@@ -196,7 +209,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                       required
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                      className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                       placeholder="Doe"
                     />
                   </div>
@@ -212,7 +225,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                      className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                       placeholder="john.doe@example.com"
                     />
                   </div>
@@ -226,7 +239,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                       required
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                      className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                       placeholder="+63 912 345 6789"
                     />
                   </div>
@@ -249,7 +262,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                       required
                       value={formData.address}
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                      className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                       placeholder="123 Main Street"
                     />
                   </div>
@@ -264,7 +277,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                         required
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                        className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                         placeholder="Manila"
                       />
                     </div>
@@ -278,7 +291,7 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                         required
                         value={formData.country}
                         onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                        className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors"
+                        className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors"
                         placeholder="Philippines"
                       />
                     </div>
@@ -299,83 +312,114 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                   <textarea
                     value={formData.specialRequests}
                     onChange={(e) => setFormData({ ...formData, specialRequests: e.target.value })}
-                    rows={4}
-                    className="w-full border-2 border-neutral-300 rounded-xl p-3 font-body text-base focus:border-neutral-900 focus:outline-none transition-colors resize-none"
+                    rows={3}
+                    className="w-full border-2 border-neutral-300 rounded-xl p-2.5 font-body text-sm focus:border-neutral-900 focus:outline-none transition-colors resize-none"
                     placeholder="Any special requests or requirements..."
                   />
                 </div>
               </div>
 
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-2 border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white font-body tracking-wider transition-all rounded-full"
+                  disabled={isSubmitting}
+                  asChild
+                >
+                  <Link href={`/booking?propertySlug=${bookingData.propertySlug}&roomSlug=${bookingData.roomSlug}`}>
+                    <ArrowLeft className="mr-2 w-5 h-5" />
+                    Back to Booking
+                  </Link>
+                </Button>
+                <Button
+                  type="submit"
+                  className="w-full bg-neutral-900 hover:bg-black text-white font-body tracking-wider transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Creating Booking...' : 'Continue to Payment'}
+                  {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
+                </Button>
+              </div>
             </form>
           </div>
 
           {/* Right Column - Booking Summary */}
-          <div className="lg:col-span-1 space-y-4">
-            <div className="bg-neutral-900 text-white p-5 rounded-2xl sticky top-24">
+          <div className="lg:col-span-1">
+            {/* Header */}
+            <div className="mb-6">
+              <h2 className="text-3xl lg:text-4xl font-display font-bold text-neutral-900 mb-2 leading-none">
+                Booking Summary
+              </h2>
+              <p className="font-body text-neutral-600">
+                Review your booking details
+              </p>
+            </div>
+            
+            <div className="bg-neutral-900 text-white p-5 rounded-2xl">
               <div className="space-y-3.5">
-                <div className="space-y-2 font-body text-sm pb-3.5 border-b border-neutral-700">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Room</span>
-                    <span className="text-right">{bookingData.roomName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Property</span>
-                    <span className="text-right">{bookingData.propertyName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Check-in</span>
-                    <span>{bookingData.checkIn}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Check-out</span>
-                    <span>{bookingData.checkOut}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Nights</span>
-                    <span className="font-semibold">{bookingData.nights}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Guests</span>
-                    <span className="font-semibold">{bookingData.guests}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">Rooms</span>
-                    <span className="font-semibold">{bookingData.rooms}</span>
-                  </div>
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 font-body text-sm pb-3.5 border-b border-neutral-700">
+                  <span className="text-neutral-400">Room</span>
+                  <span className="text-right">{bookingData.roomName}</span>
+                  
+                  <span className="text-neutral-400">Property</span>
+                  <span className="text-right">{bookingData.propertyName}</span>
+                  
+                  <span className="text-neutral-400">Check-in</span>
+                  <span className="text-right">{bookingData.checkIn}</span>
+                  
+                  <span className="text-neutral-400">Check-out</span>
+                  <span className="text-right">{bookingData.checkOut}</span>
+                  
+                  <span className="text-neutral-400">Nights</span>
+                  <span className="text-right font-semibold">{bookingData.nights}</span>
+                  
+                  <span className="text-neutral-400">Guests</span>
+                  <span className="text-right font-semibold">{bookingData.guests}</span>
+                  
+                  <span className="text-neutral-400">Rooms</span>
+                  <span className="text-right font-semibold">{bookingData.rooms}</span>
                 </div>
 
                 {/* Price Breakdown */}
                 <div className="space-y-2 font-body text-sm pb-3.5 border-b border-neutral-700">
+                  {/* Room Charges */}
                   <div className="flex justify-between">
                     <span className="text-neutral-400">
                       {bookingData.currencySymbol}{bookingData.basePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {bookingData.nights} nights × {bookingData.rooms} rooms
                     </span>
                     <span>{bookingData.currencySymbol}{bookingData.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
-                  
-                  {bookingData.serviceChargeEnabled && bookingData.serviceCharge > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-neutral-400">
-                        {bookingData.serviceChargeName} ({bookingData.serviceChargeRate}%)
-                      </span>
-                      <span>{bookingData.currencySymbol}{bookingData.serviceCharge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between">
-                    <span className="text-neutral-400">
-                      {bookingData.taxName} ({bookingData.taxRate}%)
-                    </span>
-                    <span>{bookingData.currencySymbol}{bookingData.tax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
 
-                  {bookingData.additionalFees > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-neutral-400">Additional Fees</span>
-                      <span>{bookingData.currencySymbol}{bookingData.additionalFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  {/* Selected Add-ons Display - Right after room charges */}
+                  {selectedFees.length > 0 && selectedFees.map((fee) => (
+                    <div key={fee.id} className="flex justify-between">
+                      <span className="text-neutral-400">{fee.name}</span>
+                      <span>
+                        {bookingData.currencySymbol}
+                        {fee.amount.toLocaleString('en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
                     </div>
-                  )}
+                  ))}
                 </div>
+
+                {/* Add-ons Selector */}
+                {availableFees.length > 0 && (
+                  <div className="pb-3.5 border-b border-neutral-700">
+                    <AddOnsSelector
+                      availableFees={availableFees}
+                      numberOfNights={bookingData.nights}
+                      numberOfGuests={bookingData.guests}
+                      subtotal={bookingData.subtotal}
+                      currencySymbol={bookingData.currencySymbol}
+                      onFeesChange={setSelectedFees}
+                    />
+                  </div>
+                )}
 
                 {/* Coupon Section */}
                 <div className="pb-3.5 border-b border-neutral-700">
@@ -404,6 +448,32 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
                   </div>
                 )}
 
+                {/* Service Charge and Tax */}
+                <div className="space-y-2 font-body text-sm pb-3.5 border-b border-neutral-700">
+                  {bookingData.serviceChargeEnabled && bookingData.serviceCharge > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-400">
+                        {bookingData.serviceChargeName} ({bookingData.serviceChargeRate}%)
+                      </span>
+                      <span>{bookingData.currencySymbol}{bookingData.serviceCharge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between">
+                    <span className="text-neutral-400">
+                      {bookingData.taxName} ({bookingData.taxRate}%)
+                    </span>
+                    <span>{bookingData.currencySymbol}{bookingData.tax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+
+                  {bookingData.additionalFees > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-neutral-400">Additional Fees</span>
+                      <span>{bookingData.currencySymbol}{bookingData.additionalFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex justify-between text-2xl font-display font-bold">
                   <span>Total</span>
                   <span>{bookingData.currencySymbol}{finalTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -411,30 +481,6 @@ export default function GuestDetailsForm({ bookingData }: GuestDetailsFormProps)
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-3">
-              <Button
-                type="submit"
-                onClick={handleSubmit}
-                className="w-full bg-neutral-900 hover:bg-black text-white font-body tracking-wider transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Creating Booking...' : 'Continue to Payment'}
-                {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full border-2 border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white font-body tracking-wider transition-all rounded-full"
-                disabled={isSubmitting}
-                asChild
-              >
-                <Link href={`/booking?propertySlug=${bookingData.propertySlug}&roomSlug=${bookingData.roomSlug}`}>
-                  <ArrowLeft className="mr-2 w-5 h-5" />
-                  Back to Booking
-                </Link>
-              </Button>
-            </div>
           </div>
         </div>
 

@@ -12,6 +12,11 @@ export interface CreateBookingInput {
   totalAmount: number;
   discountAmount?: number;
   promotionCode?: string;
+  selectedFees?: Array<{
+    id: string;
+    name: string;
+    amount: number;
+  }>;
   guestDetails: {
     firstName: string;
     lastName: string;
@@ -93,6 +98,9 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     const discountAmount = input.discountAmount || 0;
     const promotionCodes = input.promotionCode ? [input.promotionCode] : [];
 
+    // Calculate total add-ons amount
+    const addOnsAmount = input.selectedFees?.reduce((sum, fee) => sum + fee.amount, 0) || 0;
+
     // Create booking
     const booking = await prisma.booking.create({
       data: {
@@ -108,7 +116,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
         subtotal,
         serviceChargeAmount: serviceChargeAmount > 0 ? serviceChargeAmount : null,
         taxAmount,
-        additionalFeesAmount: null,
+        additionalFeesAmount: addOnsAmount > 0 ? addOnsAmount : null,
         discountAmount: discountAmount > 0 ? discountAmount : null,
         promotionCodes,
         totalAmount: input.totalAmount,
@@ -123,6 +131,13 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
         guestCity: input.guestDetails.city || null,
         guestCountry: input.guestDetails.country || null,
         specialRequests: input.guestDetails.specialRequests || null,
+        fees: {
+          create: input.selectedFees?.map((fee) => ({
+            name: fee.name,
+            amount: fee.amount,
+            feeType: 'OTHER',
+          })) || [],
+        },
       },
     });
 

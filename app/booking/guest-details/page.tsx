@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import GuestDetailsForm from '@/components/guest-details-form';
 import { getRoomById } from '@/actions/rooms/get-room-by-id';
 import { getBookingSettings } from '@/actions/booking/get-booking-settings';
+import { getAvailableFees } from '@/actions/fees/get-available-fees';
 import { format } from 'date-fns';
 
 interface GuestDetailsPageProps {
@@ -31,6 +32,8 @@ export default async function GuestDetailsPage({ searchParams }: GuestDetailsPag
   if (!room || !bookingSettings) {
     redirect('/');
   }
+
+  const availableFees = await getAvailableFees(room.property.id);
 
   const checkInDate = new Date(checkIn);
   const checkOutDate = new Date(checkOut);
@@ -92,5 +95,5 @@ export default async function GuestDetailsPage({ searchParams }: GuestDetailsPag
     currencySymbol: bookingSettings.currencySymbol,
   };
 
-  return <GuestDetailsForm bookingData={bookingData} />;
+  return <GuestDetailsForm bookingData={bookingData} availableFees={availableFees} />;
 }

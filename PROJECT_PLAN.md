@@ -17,6 +17,13 @@ Enterprise-grade hotel booking website with full CMS capabilities, dynamic prici
 - Booking confirmation
 - Availability calendar system
 - Dynamic pricing with tax/service charges
+- **Promo code/coupon system** ✨ NEW
+  - Server-side validation with comprehensive checks
+  - Property-specific and global promotions
+  - Multiple discount types (percentage, fixed, free nights)
+  - Usage limits and restrictions
+  - Real-time discount application in booking flow
+  - Compact UI with error states
 
 ### 🚧 Partially Completed
 - Payment webhook (needs production setup)
@@ -26,7 +33,6 @@ Enterprise-grade hotel booking website with full CMS capabilities, dynamic prici
 - Admin dashboard
 - Email notifications
 - Reviews system
-- Promo codes
 - Add-ons/extras
 
 ---
@@ -122,6 +128,12 @@ Enterprise-grade hotel booking website with full CMS capabilities, dynamic prici
 - [x] Form validation
 - [x] Error handling
 - [x] Loading states
+- [x] **Promo code application section** ✨ NEW
+  - Real-time validation
+  - Visual feedback (success/error states)
+  - Discount calculation and display
+  - Compact, professional UI
+  - Proper decimal formatting for all amounts
 
 **Step 3: Payment Selection** ✅
 - [x] Two payment options:
@@ -149,12 +161,14 @@ Enterprise-grade hotel booking website with full CMS capabilities, dynamic prici
 - `app/booking/payment/page.tsx`
 - `components/payment-selection.tsx`
 - `app/booking/confirmation/page.tsx`
+- `components/coupon-input.tsx` ✨ NEW
 
 **Actions Created:**
 - `actions/booking/get-booking-settings.ts`
-- `actions/booking/create-booking.ts`
+- `actions/booking/create-booking.ts` (updated with promo support)
 - `actions/payment/create-paymongo-checkout.ts`
 - `actions/booking/check-webhook-events.ts`
+- `actions/promotions/validate-promo-code.ts` ✨ NEW
 
 **API Routes Created:**
 - `app/api/webhooks/paymongo/route.ts` (Payment webhook handler)
@@ -168,7 +182,7 @@ Enterprise-grade hotel booking website with full CMS capabilities, dynamic prici
 
 **Features Not Implemented (Future):**
 - [ ] Add-ons & extras selection
-- [ ] Promo code validation
+- [x] Promo code validation ✅ COMPLETED
 - [ ] Loyalty points redemption
 - [ ] Terms & conditions checkbox
 - [ ] User login during booking
@@ -385,10 +399,12 @@ Enterprise-grade hotel booking website with full CMS capabilities, dynamic prici
 - [ ] Bulk price updates
 
 ### 5.7 Promotion Management
-- [ ] CRUD promo codes
-- [ ] View promo usage
+- [x] Promo code validation system ✅ (Frontend complete)
+- [ ] Admin CRUD interface for promo codes
+- [ ] View promo usage analytics
 - [ ] Deactivate promos
-- [ ] Set promo restrictions
+- [ ] Set promo restrictions (already in schema)
+- [x] Seed script for test promotions ✅
 
 ### 5.8 Fee Management
 - [ ] CRUD additional fees
