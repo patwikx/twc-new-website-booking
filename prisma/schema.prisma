@@ -1,0 +1,647 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CMS MODELS - For managing website content
+// ============================================
+
+model HeroSlide {
+  id        String          @id @default(cuid())
+  title     String
+  subtitle  String
+  order     Int             @default(0)
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  
+  images    HeroSlideImage[]
+
+  @@map("hero_slides")
+}
+
+model HeroSlideImage {
+  id          String    @id @default(cuid())
+  heroSlideId String
+  url         String
+  alt         String?
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  heroSlide   HeroSlide @relation(fields: [heroSlideId], references: [id], onDelete: Cascade)
+
+  @@map("hero_slide_images")
+}
+
+model SiteSettings {
+  id              String   @id @default(cuid())
+  siteName        String   @default("Dolores")
+  siteTagline     String   @default("HOTELS & RESORTS")
+  establishedYear String   @default("2025")
+  aboutTitle      String   @default("Where Every Stay Tells a Story")
+  aboutText1      String
+  aboutText2      String
+  ctaTitle        String   @default("Your Perfect Escape Awaits")
+  ctaSubtitle     String
+  ctaButtonText   String   @default("Make a Reservation")
+  contactTitle    String   @default("Let's Start Planning Your Stay")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model ContactInfo {
+  id          String   @id @default(cuid())
+  type        String   // "reservations" or "events"
+  title       String
+  phone       String
+  email       String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("contact_info")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  image       String
+  linkText    String
+  linkUrl     String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
+}
+
+// ============================================
+// PROPERTY & ROOM MODELS
+// ============================================
+
+model Property {
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  location      String
+  tagline       String
+  description   String
+  mainImage     String
+  order         Int            @default(0)
+  isActive      Boolean        @default(true)
+  isFeatured    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  amenities     PropertyAmenity[]
+  images        PropertyImage[]
+  rooms         Room[]
+  bookings      Booking[]
+
+  @@map("properties")
+}
+
+model PropertyAmenity {
+  id         String   @id @default(cuid())
+  propertyId String
+  name       String
+  icon       String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_amenities")
+}
+
+model PropertyImage {
+  id         String   @id @default(cuid())
+  propertyId String
+  url        String
+  caption    String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_images")
+}
+
+model Room {
+  id              String   @id @default(cuid())
+  propertyId      String
+  name            String
+  slug            String
+  description     String
+  type            String   // "Standard", "Deluxe", "Suite", "Villa"
+  maxGuests       Int
+  bedConfiguration String  // "1 King", "2 Queens", etc.
+  size            Int      // in square meters
+  basePrice       Decimal  @db.Decimal(10, 2)
+  totalRooms      Int      // Total number of this room type
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  property        Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  amenities       RoomAmenity[]
+  images          RoomImage[]
+  bookings        Booking[]
+  availability    RoomAvailability[]
+
+  @@unique([propertyId, slug])
+  @@map("rooms")
+}
+
+model RoomAmenity {
+  id        String   @id @default(cuid())
+  roomId    String
+  name      String
+  icon      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("room_amenities")
+}
+
+model RoomImage {
+  id        String   @id @default(cuid())
+  roomId    String
+  url       String
+  caption   String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@map("room_images")
+}
+
+model RoomAvailability {
+  id              String   @id @default(cuid())
+  roomId          String
+  date            DateTime @db.Date
+  availableRooms  Int      // Number of rooms available for this date
+  priceAdjustment Decimal? @db.Decimal(10, 2) // Optional price override for special dates
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, date])
+  @@map("room_availability")
+}
+
+// ============================================
+// BOOKING MODELS
+// ============================================
+
+model Booking {
+  id              String        @id @default(cuid())
+  bookingNumber   String        @unique
+  propertyId      String
+  roomId          String
+  userId          String?
+  
+  // Guest Information
+  guestFirstName  String
+  guestLastName   String
+  guestEmail      String
+  guestPhone      String
+  guestAddress    String?
+  guestCity       String?
+  guestCountry    String?
+  
+  // Booking Details
+  checkInDate     DateTime      @db.Date
+  checkOutDate    DateTime      @db.Date
+  numberOfGuests  Int
+  numberOfNights  Int
+  numberOfRooms   Int           @default(1)
+  
+  // Pricing Breakdown
+  roomRate        Decimal       @db.Decimal(10, 2)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  
+  // Charges
+  serviceChargeAmount Decimal?  @db.Decimal(10, 2)
+  taxAmount       Decimal       @db.Decimal(10, 2)
+  additionalFeesAmount Decimal? @db.Decimal(10, 2)
+  
+  // Discounts
+  discountAmount  Decimal?      @db.Decimal(10, 2)
+  promotionCodes  String[]      // Array of applied promo codes
+  
+  // Total
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  
+  // Payment Tracking
+  amountPaid      Decimal       @default(0) @db.Decimal(10, 2)
+  amountDue       Decimal       @db.Decimal(10, 2)
+  
+  // Status
+  status          BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  
+  // Special Requests
+  specialRequests String?
+  notes           String?
+  internalNotes   String?       // Staff-only notes
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  property        Property      @relation(fields: [propertyId], references: [id])
+  room            Room          @relation(fields: [roomId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id])
+  payments        Payment[]
+  fees            BookingFee[]
+
+  @@index([bookingNumber])
+  @@index([guestEmail])
+  @@index([checkInDate])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BookingFee {
+  id          String   @id @default(cuid())
+  bookingId   String
+  name        String
+  description String?
+  amount      Decimal  @db.Decimal(10, 2)
+  feeType     FeeType
+  createdAt   DateTime @default(now())
+  
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("booking_fees")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  bookingId       String
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  paymentProvider String?       // "paymongo", "stripe", "paypal", etc.
+  
+  // PayMongo Integration Fields
+  paymongoPaymentIntentId String?   @unique
+  paymongoPaymentMethodId String?
+  paymongoSourceId        String?
+  paymongoCheckoutUrl     String?
+  paymongoClientKey       String?
+  
+  // Transaction Details
+  transactionId   String?
+  referenceNumber String?
+  
+  // Payment Details
+  currency        String        @default("PHP")
+  description     String?
+  
+  // Status & Tracking
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  
+  // Metadata
+  metadata        Json?         // Store additional PayMongo metadata
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([paymongoPaymentIntentId])
+  @@index([bookingId])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  GCASH
+  PAYMAYA
+  GRAB_PAY
+  BANK_TRANSFER
+  CASH
+  PAY_AT_HOTEL
+  OTHER
+}
+
+// PayMongo Webhook Events Log
+model PayMongoWebhookEvent {
+  id              String   @id @default(cuid())
+  eventId         String   @unique // PayMongo event ID
+  eventType       String   // e.g., "payment.paid", "payment.failed"
+  paymentIntentId String?
+  sourceId        String?
+  processed       Boolean  @default(false)
+  processingError String?
+  rawPayload      Json     // Store the full webhook payload
+  createdAt       DateTime @default(now())
+  processedAt     DateTime?
+
+  @@index([eventId])
+  @@index([paymentIntentId])
+  @@index([processed])
+  @@map("paymongo_webhook_events")
+}
+
+// ============================================
+// USER & AUTHENTICATION MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  firstName     String?
+  lastName      String?
+  phone         String?
+  role          UserRole  @default(GUEST)
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  bookings      Booking[]
+  reviews       Review[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  GUEST
+  STAFF
+  MANAGER
+  ADMIN
+}
+
+// ============================================
+// REVIEW & RATING MODELS
+// ============================================
+
+model Review {
+  id          String   @id @default(cuid())
+  propertyId  String
+  userId      String
+  bookingId   String?
+  rating      Int      // 1-5
+  title       String?
+  comment     String
+  isApproved  Boolean  @default(false)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+// ============================================
+// BOOKING SETTINGS & CHARGES
+// ============================================
+
+model BookingSettings {
+  id                    String   @id @default(cuid())
+  
+  // Tax Settings
+  taxName               String   @default("VAT")
+  taxRate               Decimal  @db.Decimal(5, 2) // Percentage (e.g., 12.00 for 12%)
+  taxAppliesTo          String   @default("SUBTOTAL") // "SUBTOTAL" or "TOTAL"
+  
+  // Service Charge
+  serviceChargeName     String   @default("Service Charge")
+  serviceChargeRate     Decimal  @db.Decimal(5, 2) // Percentage
+  serviceChargeEnabled  Boolean  @default(true)
+  
+  // Additional Fees
+  cleaningFeeName       String?  @default("Cleaning Fee")
+  cleaningFeeAmount     Decimal? @db.Decimal(10, 2)
+  cleaningFeeEnabled    Boolean  @default(false)
+  
+  resortFeeName         String?  @default("Resort Fee")
+  resortFeeAmount       Decimal? @db.Decimal(10, 2)
+  resortFeePerNight     Boolean  @default(true) // If true, multiply by nights
+  resortFeeEnabled      Boolean  @default(false)
+  
+  // Booking Policies
+  cancellationPolicy    String   @default("Free cancellation up to 48 hours before check-in")
+  depositRequired       Boolean  @default(false)
+  depositPercentage     Decimal? @db.Decimal(5, 2)
+  
+  // Payment Settings
+  allowPartialPayment   Boolean  @default(true)
+  minPartialPayment     Decimal? @db.Decimal(5, 2) // Minimum percentage for partial payment
+  
+  // Currency
+  currency              String   @default("PHP")
+  currencySymbol        String   @default("₱")
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("booking_settings")
+}
+
+model AdditionalFee {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  feeType         FeeType
+  amount          Decimal  @db.Decimal(10, 2)
+  isPercentage    Boolean  @default(false)
+  isPerNight      Boolean  @default(false)
+  isPerGuest      Boolean  @default(false)
+  isOptional      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  order           Int      @default(0)
+  
+  // Applicability
+  applyToAllProperties Boolean @default(true)
+  propertyIds     String[] // Array of property IDs if not applying to all
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("additional_fees")
+}
+
+enum FeeType {
+  CLEANING
+  RESORT
+  PARKING
+  PET
+  EXTRA_BED
+  EARLY_CHECKIN
+  LATE_CHECKOUT
+  AIRPORT_TRANSFER
+  OTHER
+}
+
+// ============================================
+// PROMOTIONAL MODELS
+// ============================================
+
+model Promotion {
+  id                String         @id @default(cuid())
+  code              String         @unique
+  name              String
+  description       String?
+  
+  // Discount Configuration
+  discountType      DiscountType
+  discountValue     Decimal        @db.Decimal(10, 2)
+  maxDiscountAmount Decimal?       @db.Decimal(10, 2) // Cap for percentage discounts
+  
+  // Applicability
+  applyToAllProperties Boolean     @default(true)
+  propertyIds       String[]       // Specific properties if not all
+  applyToAllRoomTypes Boolean      @default(true)
+  roomTypeIds       String[]       // Specific room types if not all
+  
+  // Booking Requirements
+  minStay           Int?           // Minimum nights required
+  minBookingAmount  Decimal?       @db.Decimal(10, 2)
+  maxBookingAmount  Decimal?       @db.Decimal(10, 2)
+  
+  // Date Restrictions
+  validFrom         DateTime
+  validTo           DateTime
+  blackoutDates     DateTime[]     // Dates when promo cannot be used
+  
+  // Usage Limits
+  maxUses           Int?           // Total uses allowed
+  maxUsesPerUser    Int?           @default(1)
+  usedCount         Int            @default(0)
+  
+  // User Restrictions
+  newUsersOnly      Boolean        @default(false)
+  requiresLogin     Boolean        @default(false)
+  
+  // Combination Rules
+  canCombineWithOthers Boolean     @default(false)
+  priority          Int            @default(0) // Higher priority applied first
+  
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  bookingPromotions BookingPromotion[]
+
+  @@map("promotions")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_NIGHT        // Get X nights free
+  UPGRADE           // Free room upgrade
+}
+
+model BookingPromotion {
+  id              String    @id @default(cuid())
+  bookingId       String
+  promotionId     String
+  discountAmount  Decimal   @db.Decimal(10, 2)
+  appliedAt       DateTime  @default(now())
+  
+  promotion       Promotion @relation(fields: [promotionId], references: [id])
+
+  @@unique([bookingId, promotionId])
+  @@map("booking_promotions")
+}
+
+model LoyaltyProgram {
+  id                  String   @id @default(cuid())
+  name                String
+  description         String?
+  pointsPerAmount     Decimal  @db.Decimal(10, 2) // Points earned per currency unit spent
+  pointsValue         Decimal  @db.Decimal(10, 2) // Currency value per point when redeeming
+  minPointsToRedeem   Int      @default(100)
+  pointsExpiryDays    Int?     // Days until points expire (null = never)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("loyalty_programs")
+}
+
+model SeasonalPricing {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  propertyId      String?  // Null = applies to all properties
+  roomId          String?  // Null = applies to all rooms in property
+  
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  
+  adjustmentType  String   // "PERCENTAGE" or "FIXED"
+  adjustmentValue Decimal  @db.Decimal(10, 2)
+  
+  // Days of week (if null, applies to all days)
+  daysOfWeek      Int[]    // 0=Sunday, 1=Monday, etc.
+  
+  priority        Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("seasonal_pricing")
+}
+
+// ============================================
+// NEWSLETTER & MARKETING
+// ============================================
+
+model Newsletter {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  firstName   String?
+  lastName    String?
+  isActive    Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+  unsubscribedAt DateTime?
+
+  @@map("newsletters")
+}
